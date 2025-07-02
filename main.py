@@ -5,7 +5,7 @@ from google.genai import types
 from dotenv import load_dotenv
 
 from prompts import system_prompt
-from functions.call_function import available_functions, call_function
+from call_function import call_function, available_functions
 
 
 def main():
@@ -32,10 +32,10 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose, user_prompt)
+    generate_content(client, messages, verbose)
 
 
-def generate_content(client, messages, verbose, user_prompt):
+def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001",
         contents=messages,
@@ -48,32 +48,23 @@ def generate_content(client, messages, verbose, user_prompt):
         print("Response tokens:", response.usage_metadata.candidates_token_count)
 
     if not response.function_calls:
-        print(response.text)
         return response.text
 
-    # Collect all function response parts from this turn
-    function_response_parts = []
-    
+    function_responses = []
     for function_call_part in response.function_calls:
         function_call_result = call_function(function_call_part, verbose)
-        
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception("empty function call result")
         if verbose:
             print(f"-> {function_call_result.parts[0].function_response.response}")
-        
-        # Add the function response part to our collection
-        function_response_parts.append(function_call_result.parts[0])
-    
-    # Create a single Content object with all function responses from this turn
-    combined_function_response = types.Content(
-        role="function",
-        parts=function_response_parts
-    )
-    
-    # Add the combined function response to messages for the next iteration
-    messages.append(combined_function_response)
-    
-    # Continue the conversation by calling generate_content recursively
-    return generate_content(client, messages, verbose, user_prompt)
+        function_responses.append(function_call_result.parts[0])
+
+    if not function_responses:
+        raise Exception("no function responses generated, exiting.")
+
 
 if __name__ == "__main__":
     main()
