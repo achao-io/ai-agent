@@ -1,6 +1,7 @@
 import os
 from google.genai import types
 
+
 def get_file_content(working_directory, file_path):
     try:
         abs_working_dir = os.path.abspath(working_directory)
@@ -9,13 +10,17 @@ def get_file_content(working_directory, file_path):
             return f'Error: Cannot access "{file_path}" as it is outside the permitted working directory'
         if not os.path.isfile(target_file):
             return f'Error: "{file_path}" is not a file'
-        with open(target_file, 'r') as file:
+        with open(target_file, "r") as file:
             content = file.read()
             if len(content) > 10000:
-                content = content[:10000] + f'\n[...File "{file_path}" truncated at 10000 characters]'
+                content = (
+                    content[:10000]
+                    + f'\n[...File "{file_path}" truncated at 10000 characters]'
+                )
             return content
     except Exception as e:
         return f"Error: {e}"
+
 
 schema_get_file_content = types.FunctionDeclaration(
     name="get_file_content",
